@@ -82,6 +82,9 @@ import {
 import { toast } from 'sonner'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { extractInvoiceData, InvoiceOcrUnavailableError } from '@/services/invoiceOcr'
+import { InvoiceImageField } from '@/components/accounting/InvoiceImageField'
+import { AlertTriangle as AlertTriangleOcr, ScanLine } from 'lucide-react'
 
 const PIE_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#64748B']
 
