@@ -1,8 +1,8 @@
 /// <reference path="../../pb_data/types.d.ts" />
 // OCR de notas fiscais: POST /backend/v1/ocr/invoice
 // Recebe { image_base64, mime_type } e extrai valor_total, fornecedor,
-// numero_nota e data_emissao usando modelo multimodal (OpenAI Vision) quando
-// OPENAI_API_KEY está disponível; caso contrário responde 503 com mensagem
+// numero_nota e data_emissao usando $ai.chat (Skip AI Gateway, modelo "fast")
+// quando o gateway está provisionado; caso contrário responde 503 com mensagem
 // amigável (a UI oferece o preenchimento manual).
 
 routerAdd(
@@ -32,58 +32,31 @@ routerAdd(
       })
     }
 
-    const apiKey = $os.getenv('OPENAI_API_KEY')
-    if (!apiKey) {
-      console.log('ocr_invoice: OPENAI_API_KEY not configured — returning 503')
-      return e.json(503, {
-        success: false,
-        message:
-          'Leitura automática de notas indisponível no momento. Preencha valor e fornecedor manualmente.',
-      })
-    }
-
     const dataUrl = 'data:' + mimeType + ';base64,' + imageBase64
 
     let payload = null
     try {
-      const res = $http.send({
-        url: 'https://api.openai.com/v1/chat/completions',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + apiKey,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          max_tokens: 500,
-          temperature: 0,
-          messages: [
-            {
-              role: 'system',
-              content:
-                'Você é um extrator de dados de notas fiscais brasileiras. Responda SOMENTE com JSON válido, sem markdown, no formato: {"valor_total": number, "fornecedor": string, "numero_nota": string, "data_emissao": "YYYY-MM-DD", "confianca": number}. valor_total é o VALOR TOTAL da nota em reais (número). fornecedor é a razão social ou nome do emitente. numero_nota é o número da NF (string vazia se não achar). data_emissao no formato YYYY-MM-DD (string vazia se não achar). confianca é 0 a 1 indicando sua confiança na leitura. Se não conseguir ler a imagem como uma nota fiscal, responda {"valor_total": 0, "fornecedor": "", "numero_nota": "", "data_emissao": "", "confianca": 0}.',
-            },
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: 'Extraia os dados desta nota fiscal brasileira:' },
-                { type: 'image_url', image_url: { url: dataUrl } },
-              ],
-            },
-          ],
-        }),
-        timeout: 30,
+      const res = $ai.chat({
+        model: 'fast',
+        max_tokens: 500,
+        temperature: 0,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'Você é um extrator de dados de notas fiscais brasileiras. Responda SOMENTE com JSON válido, sem markdown, no formato: {"valor_total": number, "fornecedor": string, "numero_nota": string, "data_emissao": "YYYY-MM-DD", "confianca": number}. valor_total é o VALOR TOTAL da nota em reais (número). fornecedor é a razão social ou nome do emitente. numero_nota é o número da NF (string vazia se não achar). data_emissao no formato YYYY-MM-DD (string vazia se não achar). confianca é 0 a 1 indicando sua confiança na leitura. Se não conseguir ler a imagem como uma nota fiscal, responda {"valor_total": 0, "fornecedor": "", "numero_nota": "", "data_emissao": "", "confianca": 0}.',
+          },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Extraia os dados desta nota fiscal brasileira:' },
+              { type: 'image_url', image_url: { url: dataUrl } },
+            ],
+          },
+        ],
       })
 
-      if (res.statusCode >= 400) {
-        console.log('ocr_invoice: OpenAI error status ' + res.statusCode)
-        return e.json(502, {
-          success: false,
-          message: 'Não foi possível ler a nota agora. Preencha os dados manualmente.',
-        })
-      }
-
-      const content = res.json?.choices?.[0]?.message?.content || ''
+      const content = res?.choices?.[0]?.message?.content || ''
       const jsonStr = content
         .replace(/```json/gi, '')
         .replace(/```/g, '')
