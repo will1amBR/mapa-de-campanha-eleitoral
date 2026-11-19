@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-31T15:55:52.527Z",
+  "generatedAt": "2026-08-31T17:21:22.249Z",
   "collections": [
     {
       "name": "users",
@@ -29,21 +29,30 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "role",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["admin", "coordinator", "field_team"]
+          "selectValues": [
+            "admin",
+            "coordinator",
+            "field_team"
+          ]
         },
         {
           "name": "current_campaign",
@@ -110,14 +119,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": []
@@ -152,7 +166,12 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["door-to-door", "event", "flyering", "support-point"]
+          "selectValues": [
+            "door-to-door",
+            "event",
+            "flyering",
+            "support-point"
+          ]
         },
         {
           "name": "lat",
@@ -195,14 +214,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "photo",
@@ -282,17 +306,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE INDEX idx_team_locations_user ON team_locations (user_id, created DESC)"]
+      "indexes": [
+        "CREATE INDEX idx_team_locations_user ON team_locations (user_id, created DESC)"
+      ]
     },
     {
       "name": "support_points",
@@ -323,7 +354,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["office", "committee", "partner"]
+          "selectValues": [
+            "office",
+            "committee",
+            "partner"
+          ]
         },
         {
           "name": "lat",
@@ -360,17 +395,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE INDEX idx_support_points_camp ON support_points (campaign_id)"]
+      "indexes": [
+        "CREATE INDEX idx_support_points_camp ON support_points (campaign_id)"
+      ]
     },
     {
       "name": "territory_data",
@@ -430,14 +472,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -486,14 +533,21 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["active", "resolved", "dismissed"]
+          "selectValues": [
+            "active",
+            "resolved",
+            "dismissed"
+          ]
         },
         {
           "name": "severity",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["warning", "critical"]
+          "selectValues": [
+            "warning",
+            "critical"
+          ]
         },
         {
           "name": "priority_score",
@@ -524,14 +578,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -676,14 +735,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -744,7 +808,15 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["image", "video", "carousel", "text", "link", "stories", "reels"]
+          "selectValues": [
+            "image",
+            "video",
+            "carousel",
+            "text",
+            "link",
+            "stories",
+            "reels"
+          ]
         },
         {
           "name": "caption",
@@ -769,14 +841,25 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["engagement", "conversion", "awareness", "mobilization", "event"]
+          "selectValues": [
+            "engagement",
+            "conversion",
+            "awareness",
+            "mobilization",
+            "event"
+          ]
         },
         {
           "name": "status",
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["draft", "scheduled", "published", "cancelled"]
+          "selectValues": [
+            "draft",
+            "scheduled",
+            "published",
+            "cancelled"
+          ]
         },
         {
           "name": "published_at",
@@ -813,14 +896,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -923,14 +1011,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -962,7 +1055,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["meta_ads", "google_ads", "tiktok_ads"]
+          "selectValues": [
+            "meta_ads",
+            "google_ads",
+            "tiktok_ads"
+          ]
         },
         {
           "name": "external_id",
@@ -1029,7 +1126,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["active", "paused", "ended"]
+          "selectValues": [
+            "active",
+            "paused",
+            "ended"
+          ]
         },
         {
           "name": "start_date",
@@ -1054,14 +1155,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -1104,7 +1210,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["checkins", "indicacoes", "km"]
+          "selectValues": [
+            "checkins",
+            "indicacoes",
+            "km"
+          ]
         },
         {
           "name": "target_value",
@@ -1136,21 +1246,30 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["active", "completed", "archived"]
+          "selectValues": [
+            "active",
+            "completed",
+            "archived"
+          ]
         },
         {
           "name": "created",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -1206,7 +1325,12 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["upcoming", "in_progress", "completed", "cancelled"]
+          "selectValues": [
+            "upcoming",
+            "in_progress",
+            "completed",
+            "cancelled"
+          ]
         },
         {
           "name": "rules_summary",
@@ -1225,14 +1349,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -1318,14 +1447,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -1388,7 +1522,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["to_adversary", "from_adversary", "journalist"]
+          "selectValues": [
+            "to_adversary",
+            "from_adversary",
+            "journalist"
+          ]
         },
         {
           "name": "question",
@@ -1419,7 +1557,12 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["draft", "under_review", "ready", "rehearsed"]
+          "selectValues": [
+            "draft",
+            "under_review",
+            "ready",
+            "rehearsed"
+          ]
         },
         {
           "name": "priority",
@@ -1438,14 +1581,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -1491,7 +1639,12 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["estimulada_1t", "espontanea_1t", "segundo_turno", "rejeicao"]
+          "selectValues": [
+            "estimulada_1t",
+            "espontanea_1t",
+            "segundo_turno",
+            "rejeicao"
+          ]
         },
         {
           "name": "our_candidate_percentage",
@@ -1540,14 +1693,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -1622,7 +1780,12 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["facil", "medio", "dificil", "casca_de_banana"]
+          "selectValues": [
+            "facil",
+            "medio",
+            "dificil",
+            "casca_de_banana"
+          ]
         },
         {
           "name": "time_limit_seconds",
@@ -1635,17 +1798,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE INDEX idx_debate_lib_topic ON debate_qa_library (topic)"]
+      "indexes": [
+        "CREATE INDEX idx_debate_lib_topic ON debate_qa_library (topic)"
+      ]
     },
     {
       "name": "debate_rehearsals",
@@ -1718,14 +1888,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -1790,14 +1965,23 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["critical", "warning", "positive", "info"]
+          "selectValues": [
+            "critical",
+            "warning",
+            "positive",
+            "info"
+          ]
         },
         {
           "name": "status",
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["active", "resolved", "dismissed"]
+          "selectValues": [
+            "active",
+            "resolved",
+            "dismissed"
+          ]
         },
         {
           "name": "detected_at",
@@ -1840,14 +2024,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -1898,14 +2087,25 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["poll_alert", "info", "achievement", "debate", "territory"]
+          "selectValues": [
+            "poll_alert",
+            "info",
+            "achievement",
+            "debate",
+            "territory"
+          ]
         },
         {
           "name": "severity",
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["critical", "warning", "positive", "info"]
+          "selectValues": [
+            "critical",
+            "warning",
+            "positive",
+            "info"
+          ]
         },
         {
           "name": "read",
@@ -1924,14 +2124,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -1995,7 +2200,12 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["mobile", "desktop", "tablet", "unknown"]
+          "selectValues": [
+            "mobile",
+            "desktop",
+            "tablet",
+            "unknown"
+          ]
         },
         {
           "name": "is_active",
@@ -2008,14 +2218,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -2078,7 +2293,12 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["all_team", "coordinators_only", "field_only", "custom"]
+          "selectValues": [
+            "all_team",
+            "coordinators_only",
+            "field_only",
+            "custom"
+          ]
         },
         {
           "name": "target_users",
@@ -2092,7 +2312,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["scheduled", "sent", "cancelled"]
+          "selectValues": [
+            "scheduled",
+            "sent",
+            "cancelled"
+          ]
         },
         {
           "name": "sent_at",
@@ -2118,14 +2342,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -2157,7 +2386,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["receita", "despesa"]
+          "selectValues": [
+            "receita",
+            "despesa"
+          ]
         },
         {
           "name": "category",
@@ -2237,7 +2469,12 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["comprovado", "pendente_doc", "em_analise", "divergente"]
+          "selectValues": [
+            "comprovado",
+            "pendente_doc",
+            "em_analise",
+            "divergente"
+          ]
         },
         {
           "name": "receipt_file",
@@ -2256,14 +2493,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -2328,7 +2570,12 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["pendente", "em_andamento", "concluido", "em_atraso"]
+          "selectValues": [
+            "pendente",
+            "em_andamento",
+            "concluido",
+            "em_atraso"
+          ]
         },
         {
           "name": "delivered_at",
@@ -2359,14 +2606,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
