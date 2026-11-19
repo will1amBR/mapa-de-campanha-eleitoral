@@ -1,214 +1,415 @@
-// Scheduled Job: alertas de vencimento de entregas do TRE (tse_deliveries)
-// Roda diariamente às 07:10 e a cada 12h como reforço; cria alertas de
-// vencimento (status active/dimissed), notificação in-app e Web Push.
-const DLG_THRESHOLD_DAYS = 7
+// Alertas de vencimento de entregas TRE (checklist de prestação de contas).
+// - Cron diário 07:10 + reforço ao meio-dia: varre tse_deliveries não concluídas e grava
+//   alertas idempotentes em tse_delivery_alerts (status active/dismissed), além de notificação in-app.
+// - Endpoint on-demand: POST /backend/v1/accounting/deliveries/scan
+//
+// IMPORTANTE (escopo PocketBase/JVM): TODA a lógica vive DENTRO dos callbacks de
+// cronAdd/routerAdd. Nada é declarado no escopo de arquivo do hook.
 
-function tseDaysUntil(dateStr) {
-  if (!dateStr) return null
-  const d = new Date(dateStr + 'T00:00:00')
-  if (isNaN(d.getTime())) return null
-  const today = new Date()
-  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-  return Math.round((d.getTime() - todayMid.getTime()) / (1000 * 60 * 60 * 24))
-}
-
-function tseComputeSeverity(daysUntil) {
-  if (daysUntil === null) return null
-  if (daysUntil < 0) return 'critical'
-  if (daysUntil <= 3) return 'critical'
-  if (daysUntil <= DLG_THRESHOLD_DAYS) return 'warning'
-  return null
-}
-
-function tseScanDeliveries() {
+cronAdd('tse_delivery_alerts_morning', '10 7 * * *', () => {
+  const now = new Date()
   let deliveries = []
+  let created = 0
+  let activeAlerts = 0
+
   try {
     deliveries = $app.findRecordsByFilter(
       'tse_deliveries',
-      'status != "concluido" && status != "em_atraso"',
+      'status != "concluido"',
       'legal_deadline',
       500,
       0,
     )
-  } catch (err) {
-    console.log('tse_delivery_alerts: error fetching deliveries: ' + err)
-    return
+  } catch (fetchErr) {
+    console.log('tse_delivery_alerts: erro ao buscar entregas: ' + fetchErr)
+    deliveries = []
   }
-  if (!deliveries || deliveries.length === 0) return
+
+  let alertsCol = null
+  try {
+    alertsCol = $app.findCollectionByNameOrId('tse_delivery_alerts')
+  } catch (_) {
+    console.log('tse_delivery_alerts: coleção tse_delivery_alerts não encontrada')
+    alertsCol = null
+  }
 
   let notificationsCol = null
   try {
     notificationsCol = $app.findCollectionByNameOrId('notifications')
-  } catch (_) {}
+  } catch (_) {
+    notificationsCol = null
+  }
 
   for (let i = 0; i < deliveries.length; i++) {
     const del = deliveries[i]
-    const daysUntil = tseDaysUntil(del.getString('legal_deadline'))
-    const severity = tseComputeSeverity(daysUntil)
-    if (severity === null) continue // prazo confortável, nada a fazer
+    const campaignId = del.getString('campaign_id') || ''
+    const deliveryTitle = del.getString('title') || 'Entrega TRE'
+    const deadlineStr = del.getString('legal_deadline') || ''
+    if (!deadlineStr) continue
 
-    const campaignId = del.getString('campaign_id')
-    const title = del.getString('title') || 'Obrigação do TRE'
-    const isOverdue = daysUntil < 0
+    const deadlineDateOnly = String(deadlineStr).split(' ')[0].split('T')[0]
+    const deadline = new Date(deadlineDateOnly + 'T23:59:59')
+    if (isNaN(deadline.getTime())) continue
 
-    // 1. Cria/atualiza alerta de vencimento (idempotente por entrega)
-    let alertRec = null
+    const daysToDeadline = Math.ceil((now.getTime() - deadline.getTime()) / 86400000)
+    if (daysToDeadline > 3) continue
+
+    const severity = daysToDeadline < 0 ? 'critical' : 'warning'
+    const daysLabel =
+      daysToDeadline === 0
+        ? 'vence HOJE'
+        : daysToDeadline > 0
+          ? 'vence em ' + daysToDeadline + ' dia(s)'
+          : 'ATRASADA há ' + Math.abs(daysToDeadline) + ' dia(s)'
+    const summary =
+      'A entrega "' +
+      deliveryTitle +
+      '" ' +
+      daysLabel +
+      ' (prazo ' +
+      deadlineDateOnly.split('-').reverse().join('/') +
+      ').'
+
+    let existing = []
     try {
-      const existing = $app.findRecordsByFilter(
+      existing = $app.findRecordsByFilter(
         'tse_delivery_alerts',
-        'delivery_id = "' + del.id + '" && status = "active"',
+        'delivery_id = "' + del.id + '" && (status = "active" || status = "dismissed")',
         '-created',
         1,
         0,
       )
-      if (existing.length > 0) alertRec = existing[0]
-    } catch (_) {}
+    } catch (_) {
+      existing = []
+    }
 
-    try {
-      if (alertRec) {
-        // Nada mudou (mesma severidade e dias) → não reprocessa
-        if (alertRec.getInt('days_until_deadline') === daysUntil) continue
-        alertRec.set('days_until_deadline', daysUntil)
-        alertRec.set('severity', severity)
-        alertRec.set(
-          'summary',
-          isOverdue
-            ? 'Entrega "' + title + '" está ATRASADA há ' + Math.abs(daysUntil) + ' dia(s).'
-            : 'Entrega "' + title + '" vence em ' + daysUntil + ' dia(s).',
-        )
-        $app.save(alertRec)
+    let alertRecord = null
+    if (existing.length > 0) {
+      alertRecord = existing[0]
+      if (
+        alertRecord.getString('status') === 'dismissed' &&
+        alertRecord.getString('severity') === severity
+      ) {
+        continue
+      }
+    }
+
+    if (alertsCol) {
+      if (alertRecord) {
+        alertRecord.set('days_to_deadline', daysToDeadline)
+        alertRecord.set('severity', severity)
+        alertRecord.set('summary', summary)
+        alertRecord.set('status', 'active')
+        try {
+          $app.save(alertRecord)
+          activeAlerts++
+        } catch (saveErr) {
+          console.log('tse_delivery_alerts: erro ao atualizar alerta: ' + saveErr)
+        }
       } else {
-        const col = $app.findCollectionByNameOrId('tse_delivery_alerts')
-        const newAlert = new Record(col)
-        newAlert.set('campaign_id', campaignId)
-        newAlert.set('delivery_id', del.id)
-        newAlert.set('title', isOverdue ? 'Entrega TRE atrasada' : 'Prazo TRE próximo')
-        newAlert.set(
-          'summary',
-          isOverdue
-            ? 'Entrega "' + title + '" está ATRASADA há ' + Math.abs(daysUntil) + ' dia(s).'
-            : 'Entrega "' + title + '" vence em ' + daysUntil + ' dia(s).',
-        )
-        newAlert.set('severity', severity)
-        newAlert.set('days_until_deadline', daysUntil)
-        newAlert.set('status', 'active')
-        $app.save(newAlert)
+        const alert = new Record(alertsCol)
+        alert.set('campaign_id', campaignId)
+        alert.set('delivery_id', del.id)
+        alert.set('title', 'Prazo TRE: ' + deliveryTitle)
+        alert.set('summary', summary)
+        alert.set('severity', severity)
+        alert.set('status', 'active')
+        alert.set('days_to_deadline', daysToDeadline)
+        alert.set('delivery_title', deliveryTitle)
+        alert.set('deadline', deadlineDateOnly)
+        try {
+          $app.save(alert)
+          created++
+          activeAlerts++
+        } catch (saveErr) {
+          console.log('tse_delivery_alerts: erro ao criar alerta: ' + saveErr)
+        }
       }
-    } catch (alertErr) {
-      console.log('tse_delivery_alerts: error saving alert: ' + alertErr)
-      continue
     }
 
-    // 2. Notificação in-app (mesma infra do sininho)
     if (notificationsCol && campaignId) {
+      const notifTitle =
+        (daysToDeadline < 0 ? '🚨 Entrega TRE atrasada: ' : '⏰ Entrega TRE vencendo: ') +
+        deliveryTitle
+      let recentNotif = []
       try {
-        const notif = new Record(notificationsCol)
-        notif.set('campaign_id', campaignId)
-        notif.set('title', isOverdue ? '🚨 Entrega TRE atrasada' : '⏰ Prazo TRE se aproximando')
-        notif.set(
-          'body',
-          isOverdue
-            ? '"' +
-                title +
-                '" venceu há ' +
-                Math.abs(daysUntil) +
-                ' dia(s). Regularize o quanto antes.'
-            : '"' + title + '" vence em ' + daysUntil + ' dia(s). Organize a documentação.',
+        recentNotif = $app.findRecordsByFilter(
+          'notifications',
+          'campaign_id = "' + campaignId + '" && title = "' + notifTitle.replace(/"/g, '') + '"',
+          '-created',
+          1,
+          0,
         )
-        notif.set('type', 'info')
-        notif.set('severity', severity)
-        notif.set('read', false)
-        notif.set('link', '/accounting')
-        $app.save(notif)
-      } catch (notifErr) {
-        console.log('tse_delivery_alerts: notification error: ' + notifErr)
+      } catch (_) {
+        recentNotif = []
+      }
+      if (recentNotif.length === 0) {
+        try {
+          const notif = new Record(notificationsCol)
+          notif.set('campaign_id', campaignId)
+          notif.set('title', notifTitle)
+          notif.set('body', summary)
+          notif.set('type', 'info')
+          notif.set('severity', daysToDeadline < 0 ? 'critical' : 'warning')
+          notif.set('read', false)
+          notif.set('link', '/accounting')
+          $app.save(notif)
+        } catch (notifErr) {
+          console.log('tse_delivery_alerts: erro ao criar notificação: ' + notifErr)
+        }
       }
     }
+  }
 
-    // 3. Web Push (mesma infra de push_subscriptions)
-    let subscriptions = []
+  console.log(
+    'tse_delivery_alerts scan: verificadas=' +
+      deliveries.length +
+      ', criadas=' +
+      created +
+      ', ativas=' +
+      activeAlerts,
+  )
+})
+
+cronAdd('tse_delivery_alerts_midday', '0 12 * * *', () => {
+  const now = new Date()
+  let deliveries = []
+  let created = 0
+  let activeAlerts = 0
+
+  try {
+    deliveries = $app.findRecordsByFilter(
+      'tse_deliveries',
+      'status != "concluido"',
+      'legal_deadline',
+      500,
+      0,
+    )
+  } catch (fetchErr) {
+    console.log('tse_delivery_alerts (meio-dia): erro ao buscar entregas: ' + fetchErr)
+    deliveries = []
+  }
+
+  let alertsCol = null
+  try {
+    alertsCol = $app.findCollectionByNameOrId('tse_delivery_alerts')
+  } catch (_) {
+    console.log('tse_delivery_alerts (meio-dia): coleção tse_delivery_alerts não encontrada')
+    alertsCol = null
+  }
+
+  for (let i = 0; i < deliveries.length; i++) {
+    const del = deliveries[i]
+    const campaignId = del.getString('campaign_id') || ''
+    const deliveryTitle = del.getString('title') || 'Entrega TRE'
+    const deadlineStr = del.getString('legal_deadline') || ''
+    if (!deadlineStr) continue
+
+    const deadlineDateOnly = String(deadlineStr).split(' ')[0].split('T')[0]
+    const deadline = new Date(deadlineDateOnly + 'T23:59:59')
+    if (isNaN(deadline.getTime())) continue
+
+    const daysToDeadline = Math.ceil((now.getTime() - deadline.getTime()) / 86400000)
+    if (daysToDeadline > 3) continue
+
+    const severity = daysToDeadline < 0 ? 'critical' : 'warning'
+    const daysLabel =
+      daysToDeadline === 0
+        ? 'vence HOJE'
+        : daysToDeadline > 0
+          ? 'vence em ' + daysToDeadline + ' dia(s)'
+          : 'ATRASADA há ' + Math.abs(daysToDeadline) + ' dia(s)'
+    const summary =
+      'A entrega "' +
+      deliveryTitle +
+      '" ' +
+      daysLabel +
+      ' (prazo ' +
+      deadlineDateOnly.split('-').reverse().join('/') +
+      ').'
+
+    let existing = []
     try {
-      subscriptions = $app.findRecordsByFilter(
-        'push_subscriptions',
-        'is_active = true && (campaign_id = "' +
-          campaignId +
-          '" || campaign_id = "" || campaign_id = null)',
+      existing = $app.findRecordsByFilter(
+        'tse_delivery_alerts',
+        'delivery_id = "' + del.id + '" && (status = "active" || status = "dismissed")',
         '-created',
-        100,
+        1,
         0,
       )
     } catch (_) {
-      subscriptions = []
+      existing = []
     }
 
-    const pushPayload = JSON.stringify({
-      title: isOverdue ? '🚨 Entrega TRE atrasada' : '⏰ Prazo TRE se aproximando',
-      body: isOverdue
-        ? '"' + title + '" venceu há ' + Math.abs(daysUntil) + ' dia(s).'
-        : '"' + title + '" vence em ' + daysUntil + ' dia(s).',
-      url: '/accounting',
-      icon: '/favicon.ico',
-      badge: '/favicon.ico',
-      tag: 'tse-delivery-' + del.id + '-' + daysUntil,
-      data: { url: '/accounting', campaign_id: campaignId, delivery_id: del.id },
-    })
+    let alertRecord = null
+    if (existing.length > 0) {
+      alertRecord = existing[0]
+      if (
+        alertRecord.getString('status') === 'dismissed' &&
+        alertRecord.getString('severity') === severity
+      ) {
+        continue
+      }
+    }
 
-    for (let s = 0; s < subscriptions.length; s++) {
-      const sub = subscriptions[s]
-      const endpoint = sub.getString('endpoint')
-      if (!endpoint) continue
-      try {
-        let httpRes
+    if (alertsCol) {
+      if (alertRecord) {
+        alertRecord.set('days_to_deadline', daysToDeadline)
+        alertRecord.set('severity', severity)
+        alertRecord.set('summary', summary)
+        alertRecord.set('status', 'active')
         try {
-          httpRes = $http.send({
-            url: endpoint,
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', TTL: '86400', Urgency: 'high' },
-            body: pushPayload,
-            timeout: 5,
-          })
-        } catch (_) {
-          httpRes = { statusCode: 200 }
+          $app.save(alertRecord)
+          activeAlerts++
+        } catch (saveErr) {
+          console.log('tse_delivery_alerts (meio-dia): erro ao atualizar alerta: ' + saveErr)
         }
-        if (httpRes && (httpRes.statusCode === 404 || httpRes.statusCode === 410)) {
-          sub.set('is_active', false)
-          $app.save(sub)
+      } else {
+        const alert = new Record(alertsCol)
+        alert.set('campaign_id', campaignId)
+        alert.set('delivery_id', del.id)
+        alert.set('title', 'Prazo TRE: ' + deliveryTitle)
+        alert.set('summary', summary)
+        alert.set('severity', severity)
+        alert.set('status', 'active')
+        alert.set('days_to_deadline', daysToDeadline)
+        alert.set('delivery_title', deliveryTitle)
+        alert.set('deadline', deadlineDateOnly)
+        try {
+          $app.save(alert)
+          created++
+          activeAlerts++
+        } catch (saveErr) {
+          console.log('tse_delivery_alerts (meio-dia): erro ao criar alerta: ' + saveErr)
         }
-      } catch (pushErr) {
-        console.log('tse_delivery_alerts: push error: ' + pushErr)
       }
     }
   }
-}
 
-cronAdd('check_tse_delivery_alerts', '10 7 * * *', () => {
-  try {
-    tseScanDeliveries()
-  } catch (err) {
-    console.log('Error in check_tse_delivery_alerts cron: ' + err)
-  }
+  console.log(
+    'tse_delivery_alerts (meio-dia) scan: verificadas=' +
+      deliveries.length +
+      ', criadas=' +
+      created +
+      ', ativas=' +
+      activeAlerts,
+  )
 })
 
-cronAdd('check_tse_delivery_alerts_12h', '10 */12 * * *', () => {
-  try {
-    tseScanDeliveries()
-  } catch (err) {
-    console.log('Error in check_tse_delivery_alerts_12h cron: ' + err)
-  }
-})
-
-// POST /backend/v1/accounting/deliveries/scan
-// Executa o scan on-demand (usado pela UI logo após abrir o checklist).
 routerAdd(
   'POST',
   '/backend/v1/accounting/deliveries/scan',
   (e) => {
-    if (!e.auth) return e.unauthorizedError('Autenticação necessária')
     try {
-      tseScanDeliveries()
-      return e.json(200, { success: true, message: 'Varredura de prazos TRE concluída.' })
+      const now = new Date()
+      let deliveries = []
+      let created = 0
+      let activeAlerts = 0
+
+      try {
+        deliveries = $app.findRecordsByFilter(
+          'tse_deliveries',
+          'status != "concluido"',
+          'legal_deadline',
+          500,
+          0,
+        )
+      } catch (_) {
+        deliveries = []
+      }
+
+      let alertsCol = null
+      try {
+        alertsCol = $app.findCollectionByNameOrId('tse_delivery_alerts')
+      } catch (_) {
+        return e.json(500, { error: 'Coleção tse_delivery_alerts não encontrada' })
+      }
+
+      for (let i = 0; i < deliveries.length; i++) {
+        const del = deliveries[i]
+        const deadlineStr = del.getString('legal_deadline') || ''
+        if (!deadlineStr) continue
+
+        const deadlineDateOnly = String(deadlineStr).split(' ')[0].split('T')[0]
+        const deadline = new Date(deadlineDateOnly + 'T23:59:59')
+        if (isNaN(deadline.getTime())) continue
+
+        const daysToDeadline = Math.ceil((now.getTime() - deadline.getTime()) / 86400000)
+        if (daysToDeadline > 3) continue
+
+        const severity = daysToDeadline < 0 ? 'critical' : 'warning'
+        const deliveryTitle = del.getString('title') || 'Entrega TRE'
+        const daysLabel =
+          daysToDeadline === 0
+            ? 'vence HOJE'
+            : daysToDeadline > 0
+              ? 'vence em ' + daysToDeadline + ' dia(s)'
+              : 'ATRASADA há ' + Math.abs(daysToDeadline) + ' dia(s)'
+        const summary =
+          'A entrega "' +
+          deliveryTitle +
+          '" ' +
+          daysLabel +
+          ' (prazo ' +
+          deadlineDateOnly.split('-').reverse().join('/') +
+          ').'
+
+        let existing = []
+        try {
+          existing = $app.findRecordsByFilter(
+            'tse_delivery_alerts',
+            'delivery_id = "' + del.id + '" && (status = "active" || status = "dismissed")',
+            '-created',
+            1,
+            0,
+          )
+        } catch (_) {
+          existing = []
+        }
+
+        let alertRecord = null
+        if (existing.length > 0) {
+          alertRecord = existing[0]
+          if (
+            alertRecord.getString('status') === 'dismissed' &&
+            alertRecord.getString('severity') === severity
+          ) {
+            continue
+          }
+        }
+
+        if (alertRecord) {
+          alertRecord.set('days_to_deadline', daysToDeadline)
+          alertRecord.set('severity', severity)
+          alertRecord.set('summary', summary)
+          alertRecord.set('status', 'active')
+          $app.save(alertRecord)
+          activeAlerts++
+        } else {
+          const alert = new Record(alertsCol)
+          alert.set('campaign_id', del.getString('campaign_id') || '')
+          alert.set('delivery_id', del.id)
+          alert.set('title', 'Prazo TRE: ' + deliveryTitle)
+          alert.set('summary', summary)
+          alert.set('severity', severity)
+          alert.set('status', 'active')
+          alert.set('days_to_deadline', daysToDeadline)
+          alert.set('delivery_title', deliveryTitle)
+          alert.set('deadline', deadlineDateOnly)
+          $app.save(alert)
+          created++
+          activeAlerts++
+        }
+      }
+
+      return e.json(200, {
+        success: true,
+        checked: deliveries.length,
+        active_alerts: activeAlerts,
+        created: created,
+      })
     } catch (err) {
-      return e.json(500, { error: err.message || 'Erro ao varrer prazos do TRE.' })
+      return e.json(500, { error: 'Erro ao verificar prazos das entregas TRE: ' + err })
     }
   },
   $apis.requireAuth(),

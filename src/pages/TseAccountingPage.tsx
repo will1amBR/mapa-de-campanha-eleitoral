@@ -41,30 +41,22 @@ import {
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
-  DollarSign,
   TrendingUp,
   TrendingDown,
   Scale,
   FileCheck2,
   AlertTriangle,
+  BellRing,
   CheckCircle2,
   Plus,
   Receipt,
-  FileText,
-  Upload,
   Clock,
   Calendar,
-  Building2,
   Trash2,
   Edit2,
   Download,
   Search,
-  Filter,
   ShieldCheck,
-  HelpCircle,
-  ExternalLink,
-  ChevronRight,
-  Sparkles,
 } from 'lucide-react'
 import {
   BarChart,
@@ -84,7 +76,6 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { extractInvoiceData, InvoiceOcrUnavailableError } from '@/services/invoiceOcr'
 import { InvoiceImageField } from '@/components/accounting/InvoiceImageField'
-import { AlertTriangle as AlertTriangleOcr, ScanLine } from 'lucide-react'
 
 const PIE_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#64748B']
 
@@ -123,6 +114,8 @@ export const TseAccountingPage: React.FC = () => {
   const [txProofStatus, setTxProofStatus] = useState<TseProofStatus>('comprovado')
   const [txNotes, setTxNotes] = useState('')
   const [txReceiptFile, setTxReceiptFile] = useState<File | null>(null)
+  const [txReceiptPreview, setTxReceiptPreview] = useState<string | null>(null)
+  const [isOcrReading, setIsOcrReading] = useState(false)
   const [isSavingTx, setIsSavingTx] = useState(false)
 
   // Form states for delivery
@@ -222,6 +215,18 @@ export const TseAccountingPage: React.FC = () => {
     }
   }, [transactions, deliveries])
 
+  // Deadline alerts for deliveries (vencendo em <=7 dias ou vencidas, não concluídas)
+  const deliveryAlerts = useMemo(() => {
+    return deliveries
+      .filter((d) => d.status !== 'concluido' && d.legal_deadline)
+      .map((d) => {
+        const dl = new Date(d.legal_deadline + 'T23:59:59')
+        const daysLeft = Math.ceil((dl.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+        return { ...d, daysLeft, severity: daysLeft < 0 ? 'overdue' : 'due_soon' }
+      })
+      .filter((d) => d.severity === 'overdue' || d.daysLeft <= 7)
+  }, [deliveries])
+
   // Category breakdown for charts
   const expenseByCategory = useMemo(() => {
     const map: Record<string, number> = {}
@@ -279,6 +284,7 @@ export const TseAccountingPage: React.FC = () => {
     setTxProofStatus('comprovado')
     setTxNotes('')
     setTxReceiptFile(null)
+    setTxReceiptPreview(null)
     setIsTxModalOpen(true)
   }
 
@@ -296,7 +302,48 @@ export const TseAccountingPage: React.FC = () => {
     setTxProofStatus(tx.proof_status || 'comprovado')
     setTxNotes(tx.notes || '')
     setTxReceiptFile(null)
+    setTxReceiptPreview(null)
     setIsTxModalOpen(true)
+  }
+
+  // OCR: seleciona a foto da nota, gera preview e permite leitura automática
+  const handleTxReceiptSelected = (file: File | null) => {
+    setTxReceiptFile(file)
+    setTxReceiptPreview(file ? URL.createObjectURL(file) : null)
+  }
+
+  const handleTxReceiptClear = () => {
+    if (txReceiptPreview) URL.revokeObjectURL(txReceiptPreview)
+    setTxReceiptFile(null)
+    setTxReceiptPreview(null)
+  }
+
+  const handleReadInvoiceOcr = async () => {
+    if (!txReceiptFile) {
+      toast.error('Anexe ou fotografe a nota fiscal primeiro.')
+      return
+    }
+    try {
+      setIsOcrReading(true)
+      const result = await extractInvoiceData(txReceiptFile)
+      if (result.valor_total > 0) setTxAmount(String(result.valor_total))
+      if (result.fornecedor) setTxPartyName(result.fornecedor)
+      if (result.numero_nota && !txDocNumber) setTxDocNumber(result.numero_nota)
+      toast.success(
+        `Nota lida com sucesso! Valor: ${result.valor_total.toLocaleString('pt-BR', {
+          style: 'currency',
+          currency: 'BRL',
+        })} • Fornecedor: ${result.fornecedor || 'não identificado'}`,
+      )
+    } catch (err: any) {
+      if (err instanceof InvoiceOcrUnavailableError) {
+        toast.info(err.message)
+      } else {
+        toast.error(err?.message || 'Erro ao ler a nota fiscal.')
+      }
+    } finally {
+      setIsOcrReading(false)
+    }
   }
 
   const handleSaveTx = async (e: React.FormEvent) => {
@@ -876,9 +923,12 @@ export const TseAccountingPage: React.FC = () => {
           </TabsTrigger>
           <TabsTrigger
             value="deliveries"
-            className="data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 font-bold text-xs"
+            className="data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 font-bold text-xs relative"
           >
             <FileCheck2 className="w-3.5 h-3.5 mr-1.5" /> Checklist TRE ({deliveries.length})
+            {deliveryAlerts.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -1291,6 +1341,26 @@ export const TseAccountingPage: React.FC = () => {
             </div>
 
             <div className="p-4 space-y-3">
+              {deliveryAlerts.length > 0 && (
+                <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-500/50 flex items-start gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                    <BellRing className="w-4 h-4 animate-bounce" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-extrabold text-amber-200">
+                      {deliveryAlerts.filter((a) => a.severity === 'overdue').length > 0 &&
+                        `${deliveryAlerts.filter((a) => a.severity === 'overdue').length} entrega(s) VENCIDA(S) • `}
+                      {deliveryAlerts.filter((a) => a.severity === 'due_soon').length} entrega(s)
+                      vencendo em até 7 dias
+                    </p>
+                    <p className="text-[11px] text-amber-200/70 mt-0.5">
+                      Prazos legais improrrogáveis junto à Justiça Eleitoral — registre o protocolo
+                      o quanto antes.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {deliveries.length === 0 ? (
                 <div className="text-center py-8 text-slate-400 text-xs">
                   Nenhuma obrigação cadastrada no momento.
@@ -1300,6 +1370,9 @@ export const TseAccountingPage: React.FC = () => {
                   const statusMeta =
                     TSE_DELIVERY_STATUS_MAP[del.status] || TSE_DELIVERY_STATUS_MAP.pendente
                   const isDone = del.status === 'concluido'
+                  const alertMeta = deliveryAlerts.find((a) => a.id === del.id)
+                  const isOverdue = alertMeta?.severity === 'overdue'
+                  const isDueSoon = !!alertMeta && !isOverdue
 
                   return (
                     <div
@@ -1307,7 +1380,11 @@ export const TseAccountingPage: React.FC = () => {
                       className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 ${
                         isDone
                           ? 'bg-emerald-950/20 border-emerald-500/30'
-                          : 'bg-slate-950/80 border-slate-800 hover:border-slate-700'
+                          : isOverdue
+                            ? 'bg-rose-950/30 border-rose-500/50 shadow-[0_0_12px_rgba(244,63,94,0.15)]'
+                            : isDueSoon
+                              ? 'bg-amber-950/20 border-amber-500/40'
+                              : 'bg-slate-950/80 border-slate-800 hover:border-slate-700'
                       }`}
                     >
                       <div className="flex items-start gap-3 min-w-0">
@@ -1325,6 +1402,29 @@ export const TseAccountingPage: React.FC = () => {
 
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
+                            {alertMeta && !isDone && (
+                              <span
+                                className={`flex items-center gap-1 text-[10px] font-black px-1.5 py-0.5 rounded-md shrink-0 ${
+                                  isOverdue
+                                    ? 'bg-rose-500/20 text-rose-300'
+                                    : 'bg-amber-500/20 text-amber-300'
+                                }`}
+                                title={
+                                  isOverdue
+                                    ? 'Entrega vencida'
+                                    : `Vence em ${alertMeta.daysLeft} dia(s)`
+                                }
+                              >
+                                <BellRing
+                                  className={`w-3 h-3 ${isOverdue ? 'animate-bounce' : ''}`}
+                                />
+                                {isOverdue
+                                  ? 'VENCIDA'
+                                  : alertMeta.daysLeft === 0
+                                    ? 'VENCE HOJE'
+                                    : `${alertMeta.daysLeft}d`}
+                              </span>
+                            )}
                             <h4
                               className={`text-sm font-bold truncate ${
                                 isDone ? 'text-emerald-300 line-through opacity-85' : 'text-white'
@@ -1586,18 +1686,42 @@ export const TseAccountingPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Upload da nota fiscal com preview + OCR */}
+            {txType === 'despesa' && !editingTx && (
+              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                <InvoiceImageField
+                  previewUrl={txReceiptPreview}
+                  isReading={isOcrReading}
+                  onFileSelected={handleTxReceiptSelected}
+                  onClear={handleTxReceiptClear}
+                  onReadClick={handleReadInvoiceOcr}
+                />
+                <p className="text-[10px] text-slate-500 mt-2">
+                  Opcional: anexe também PDF em "Anexo do Documento Fiscal" abaixo, se disponível.
+                </p>
+              </div>
+            )}
+
             {/* Upload File */}
-            <div className="space-y-1">
-              <Label className="text-[11px] text-slate-300">
-                Anexo do Documento Fiscal (PDF ou Foto)
-              </Label>
-              <Input
-                type="file"
-                accept="image/*,application/pdf"
-                onChange={(e) => setTxReceiptFile(e.target.files?.[0] || null)}
-                className="bg-slate-950 border-slate-700 text-slate-100 text-xs h-9 file:bg-slate-800 file:text-slate-200 file:border-0 file:rounded file:text-xs file:mr-2"
-              />
-            </div>
+            {txType !== 'despesa' || editingTx ? (
+              <div className="space-y-1">
+                <Label className="text-[11px] text-slate-300">
+                  Anexo do Documento Fiscal (PDF ou Foto)
+                </Label>
+                <Input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null
+                    setTxReceiptFile(f)
+                    setTxReceiptPreview(
+                      f && f.type.startsWith('image/') ? URL.createObjectURL(f) : null,
+                    )
+                  }}
+                  className="bg-slate-950 border-slate-700 text-slate-100 text-xs h-9 file:bg-slate-800 file:text-slate-200 file:border-0 file:rounded file:text-xs file:mr-2"
+                />
+              </div>
+            ) : null}
 
             {/* Notes */}
             <div className="space-y-1">

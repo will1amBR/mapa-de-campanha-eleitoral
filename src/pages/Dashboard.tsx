@@ -64,6 +64,7 @@ import {
   FileCheck2,
 } from 'lucide-react'
 import { OnboardingWizard } from '@/components/OnboardingWizard'
+import { CashPositionCard } from '@/components/dashboard/CashPositionCard'
 import {
   Select,
   SelectContent,
@@ -642,6 +643,9 @@ export const Dashboard: React.FC = () => {
         teamLocations={teamLocations}
         teamUsers={teamUsers}
       />
+
+      {/* CAIXA ELEITORAL: receitas, despesas e saldo das tse_transactions */}
+      <CashPositionCard campaignId={currentCampaign?.id || null} />
 
       {/* CARD RESUMO: ACOMPANHAMENTO DE PESQUISAS ELEITORAIS COM ALERTAS DE VIRADA */}
       {(() => {
